@@ -113,7 +113,7 @@ export function NewsFeed({ news }: NewsFeedProps) {
       {!news.isLoading && news.articles.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {news.articles.map((article) => (
-            <NewsCard key={article.article_id} article={article} />
+            <NewsCard key={article.id} article={article} />
           ))}
         </div>
       )}
