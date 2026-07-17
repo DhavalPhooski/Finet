@@ -40,7 +40,7 @@ export function useComments(postId: string): UseCommentsReturn {
     if (result.error) {
       setError(result.error)
     } else {
-      setComments(result.data)
+      setComments(result.data ?? [])
     }
 
     setIsLoading(false)
@@ -88,9 +88,17 @@ export function useComments(postId: string): UseCommentsReturn {
         return result.error
       }
 
+      if (!result.data) {
+        setComments((prev) =>
+          prev.filter((c) => c.id !== optimisticComment.id)
+        )
+        return 'Failed to post comment.'
+      }
+
       // Replace optimistic entry with real data
+      const realComment = result.data
       setComments((prev) =>
-        prev.map((c) => (c.id === optimisticComment.id ? result.data : c))
+        prev.map((c) => (c.id === optimisticComment.id ? realComment : c))
       )
 
       return null

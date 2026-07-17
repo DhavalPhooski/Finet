@@ -86,7 +86,7 @@ export function useBudget(transactions: Transaction[] = []): UseBudgetReturn {
     else setIncomeState(incomeResult.data)
 
     if (nodesResult.error) setError(nodesResult.error)
-    else setNodes(nodesResult.data)
+    else setNodes(nodesResult.data ?? [])
 
     setIsLoading(false)
   }, [user])
@@ -129,6 +129,7 @@ export function useBudget(transactions: Transaction[] = []): UseBudgetReturn {
       }
 
       if (result.error) return result.error
+      if (!result.data) return 'Failed to save income.'
 
       setIncomeState(result.data)
 
@@ -140,7 +141,7 @@ export function useBudget(transactions: Transaction[] = []): UseBudgetReturn {
       // Reload nodes to reflect updated allocations
       const nodesResult = await getBudgetNodes(user.id)
       if (nodesResult.error) return nodesResult.error
-      setNodes(nodesResult.data)
+      setNodes(nodesResult.data ?? [])
 
       return null
     },
@@ -153,8 +154,9 @@ export function useBudget(transactions: Transaction[] = []): UseBudgetReturn {
     async (payload: BudgetNodeInsert): Promise<string | null> => {
       const result = await createBudgetNode(payload, nodes)
       if (result.error) return result.error
+      if (!result.data) return 'Failed to create budget node.'
       setNodes((prev) =>
-        [...prev, result.data].sort((a, b) => a.sort_order - b.sort_order)
+        [...prev, result.data!].sort((a, b) => a.sort_order - b.sort_order)
       )
       return null
     },
@@ -165,7 +167,9 @@ export function useBudget(transactions: Transaction[] = []): UseBudgetReturn {
     async (id: string, updates: BudgetNodeUpdate): Promise<string | null> => {
       const result = await updateBudgetNode(id, updates, nodes)
       if (result.error) return result.error
-      setNodes((prev) => prev.map((n) => (n.id === id ? result.data : n)))
+      if (!result.data) return 'Failed to update budget node.'
+      const updated = result.data
+      setNodes((prev) => prev.map((n) => (n.id === id ? updated : n)))
       return null
     },
     [nodes]

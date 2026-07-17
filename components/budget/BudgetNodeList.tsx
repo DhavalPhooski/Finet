@@ -5,7 +5,7 @@ import { BudgetNodeCard } from './BudgetNodeCard'
 import { BudgetNodeForm } from './BudgetNodeForm'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
-import type { BudgetNodeWithStats, BudgetNode, BudgetNodeUpdate } from '@/types'
+import type { BudgetNodeWithStats, BudgetNode, BudgetNodeInsert, BudgetNodeUpdate } from '@/types'
 import type { UseBudgetReturn } from '@/hooks/useBudget'
 
 interface BudgetNodeListProps {
@@ -60,10 +60,21 @@ export function BudgetNodeList({
 
   async function handleAddChild(
     parentId: string,
-    payload: Parameters<UseBudgetReturn['addNode']>[0]
+    parentUserId: string,
+    payload: BudgetNodeInsert | BudgetNodeUpdate
   ): Promise<string | null> {
     setActionError(null)
-    const err = await budget.addNode({ ...payload, parent_id: parentId })
+    // Construct a proper BudgetNodeInsert — BudgetNodeForm guarantees
+    // title and allocated_amount are present when creating a new node.
+    const insert: BudgetNodeInsert = {
+      user_id: parentUserId,
+      parent_id: parentId,
+      title: (payload.title ?? '') as string,
+      allocated_amount: (payload.allocated_amount ?? 0) as number,
+      color: payload.color ?? null,
+      icon: payload.icon ?? null,
+    }
+    const err = await budget.addNode(insert)
     if (!err) setAddingChildTo(null)
     else setActionError(err)
     return err
@@ -94,11 +105,8 @@ export function BudgetNodeList({
                 <BudgetNodeForm
                   parentNode={rootNode}
                   siblings={siblings}
-                  onSubmit={async (payload) =>
-                    handleAddChild(rootNode.id, {
-                      ...(payload as Parameters<UseBudgetReturn['addNode']>[0]),
-                      user_id: rootNode.user_id,
-                    })
+                  onSubmit={(payload) =>
+                    handleAddChild(rootNode.id, rootNode.user_id, payload)
                   }
                   onCancel={() => setAddingChildTo(null)}
                 />

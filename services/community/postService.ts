@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/client'
 import type {
   CommunityPostWithMeta,
   CommunityPostInsert,
-  CommunityPostUpdate,
   ServiceResult,
 } from '@/types'
 
@@ -19,12 +18,61 @@ export interface FeedOptions {
   limit?: number
 }
 
+// ─── Raw row shapes ───────────────────────────────────────────────────────────
+// Queries that use relation joins cast data to these interfaces because the
+// Supabase typed client cannot infer joined shapes without full Relationships
+// declarations in database.ts.
+
+interface PostRow {
+  id: string
+  author_id: string
+  content: string
+  label: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+  author: { id: string; full_name: string | null } | null
+  votes: { post_id: string; user_id: string; vote: number }[] | null
+  comments: { id: string }[] | null
+}
+
+interface ProfileRow {
+  id: string
+  full_name: string | null
+  created_at: string
+}
+
+// ─── Helper: map a raw post row to CommunityPostWithMeta ─────────────────────
+
+function mapPostRow(row: PostRow, currentUserId: string | null): CommunityPostWithMeta {
+  const votes = row.votes ?? []
+  const upvotes = votes.filter((v) => v.vote === 1).length
+  const downvotes = votes.filter((v) => v.vote === -1).length
+  const userVoteRow = currentUserId
+    ? votes.find((v) => v.user_id === currentUserId)
+    : null
+  const user_vote = userVoteRow ? (userVoteRow.vote as 1 | -1) : null
+
+  return {
+    id: row.id,
+    author_id: row.author_id,
+    content: row.content,
+    label: row.label,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    deleted_at: row.deleted_at,
+    author: row.author ?? { id: row.author_id, full_name: null },
+    upvotes,
+    downvotes,
+    score: upvotes - downvotes,
+    comment_count: row.comments?.length ?? 0,
+    user_vote,
+  }
+}
+
 /**
  * Fetch paginated community posts with author info, vote counts,
  * and comment count. Only returns non-deleted posts.
- *
- * Vote aggregation is done client-side from the joined rows to avoid
- * a custom DB function dependency.
  */
 export async function getFeedPosts(
   currentUserId: string | null,
@@ -46,7 +94,7 @@ export async function getFeedPosts(
     )
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
-    .range(offset, offset + limit)   // fetch limit+1 to detect hasMore
+    .range(offset, offset + limit)
 
   if (options.label) {
     query = query.eq('label', options.label)
@@ -61,37 +109,9 @@ export async function getFeedPosts(
 
   if (error) return { data: null, error: error.message }
 
-  const raw = data ?? []
+  const raw = (data ?? []) as unknown as PostRow[]
   const hasMore = raw.length > limit
-  const slice = raw.slice(0, limit)
-
-  const posts: CommunityPostWithMeta[] = slice.map((row) => {
-    const votes = (row.votes as { post_id: string; user_id: string; vote: number }[]) ?? []
-    const upvotes = votes.filter((v) => v.vote === 1).length
-    const downvotes = votes.filter((v) => v.vote === -1).length
-    const userVoteRow = currentUserId
-      ? votes.find((v) => v.user_id === currentUserId)
-      : null
-    const user_vote = userVoteRow
-      ? (userVoteRow.vote as 1 | -1)
-      : null
-
-    return {
-      id: row.id,
-      author_id: row.author_id,
-      content: row.content,
-      label: row.label,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      deleted_at: row.deleted_at,
-      author: row.author as { id: string; full_name: string | null },
-      upvotes,
-      downvotes,
-      score: upvotes - downvotes,
-      comment_count: (row.comments as { id: string }[])?.length ?? 0,
-      user_vote,
-    }
-  })
+  const posts = raw.slice(0, limit).map((row) => mapPostRow(row, currentUserId))
 
   return { data: { posts, hasMore }, error: null }
 }
@@ -117,9 +137,17 @@ export async function createPost(
   if (error) return { data: null, error: error.message }
   if (!data) return { data: null, error: 'Failed to create post.' }
 
+  const row = data as unknown as PostRow
+
   const post: CommunityPostWithMeta = {
-    ...data,
-    author: data.author as { id: string; full_name: string | null },
+    id: row.id,
+    author_id: row.author_id,
+    content: row.content,
+    label: row.label,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    deleted_at: row.deleted_at,
+    author: row.author ?? { id: row.author_id, full_name: null },
     upvotes: 0,
     downvotes: 0,
     score: 0,
@@ -137,7 +165,7 @@ export async function softDeletePost(id: string): Promise<ServiceResult<null>> {
 
   const { error } = await supabase
     .from('community_posts')
-    .update({ deleted_at: new Date().toISOString() } as CommunityPostUpdate)
+    .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
 
   if (error) return { data: null, error: error.message }
@@ -172,64 +200,70 @@ export async function getUserPosts(
 
   if (error) return { data: null, error: error.message }
 
-  const raw = data ?? []
+  const raw = (data ?? []) as unknown as PostRow[]
   const hasMore = raw.length > limit
-
-  const posts: CommunityPostWithMeta[] = raw.slice(0, limit).map((row) => {
-    const votes = (row.votes as { post_id: string; user_id: string; vote: number }[]) ?? []
-    const upvotes = votes.filter((v) => v.vote === 1).length
-    const downvotes = votes.filter((v) => v.vote === -1).length
-    const userVoteRow = currentUserId
-      ? votes.find((v) => v.user_id === currentUserId)
-      : null
-
-    return {
-      id: row.id,
-      author_id: row.author_id,
-      content: row.content,
-      label: row.label,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      deleted_at: row.deleted_at,
-      author: row.author as { id: string; full_name: string | null },
-      upvotes,
-      downvotes,
-      score: upvotes - downvotes,
-      comment_count: (row.comments as { id: string }[])?.length ?? 0,
-      user_vote: userVoteRow ? (userVoteRow.vote as 1 | -1) : null,
-    }
-  })
+  const posts = raw.slice(0, limit).map((row) => mapPostRow(row, currentUserId))
 
   return { data: { posts, hasMore }, error: null }
 }
 
-// ─── Author stats (for profile page) ─────────────────────────────────────────
+// ─── Public profile fetch (for community user page) ──────────────────────────
+
+export async function getPublicProfile(
+  userId: string
+): Promise<ServiceResult<{ id: string; full_name: string | null; created_at: string }>> {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, created_at')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (error) return { data: null, error: error.message }
+  if (!data) return { data: null, error: 'User not found.' }
+
+  const row = data as unknown as ProfileRow
+
+  return {
+    data: { id: row.id, full_name: row.full_name, created_at: row.created_at },
+    error: null,
+  }
+}
+
+// ─── Author stats ─────────────────────────────────────────────────────────────
 
 export async function getAuthorStats(
   authorId: string
 ): Promise<ServiceResult<{ totalPosts: number; totalUpvotes: number }>> {
   const supabase = createClient()
 
-  const [postsRes, votesRes] = await Promise.all([
-    supabase
-      .from('community_posts')
-      .select('id', { count: 'exact', head: true })
-      .eq('author_id', authorId)
-      .is('deleted_at', null),
-    supabase
-      .from('community_votes')
-      .select('community_posts!inner(author_id)', { count: 'exact', head: true })
-      .eq('community_posts.author_id', authorId)
-      .eq('vote', 1),
-  ])
+  const postsRes = await supabase
+    .from('community_posts')
+    .select('id', { count: 'exact' })
+    .eq('author_id', authorId)
+    .is('deleted_at', null)
 
   if (postsRes.error) return { data: null, error: postsRes.error.message }
-  if (votesRes.error) return { data: null, error: votesRes.error.message }
+
+  const postIds = (postsRes.data ?? []).map((p) => p.id)
+
+  let totalUpvotes = 0
+  if (postIds.length > 0) {
+    const votesRes = await supabase
+      .from('community_votes')
+      .select('id', { count: 'exact' })
+      .in('post_id', postIds)
+      .eq('vote', 1)
+
+    if (votesRes.error) return { data: null, error: votesRes.error.message }
+    totalUpvotes = votesRes.count ?? 0
+  }
 
   return {
     data: {
       totalPosts: postsRes.count ?? 0,
-      totalUpvotes: votesRes.count ?? 0,
+      totalUpvotes,
     },
     error: null,
   }

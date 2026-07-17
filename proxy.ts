@@ -12,7 +12,7 @@ const PUBLIC_ROUTES = ['/login', '/signup']
  */
 const AUTH_ROUTES = ['/login', '/signup']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // 1. Refresh the session and get the current user

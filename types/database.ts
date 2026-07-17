@@ -2,6 +2,10 @@
  * Database type definitions mirroring the Supabase PostgreSQL schema.
  * These are used to type the Supabase client and all query results.
  * Update these when you run schema migrations.
+ *
+ * Note: Each table requires a `Relationships` key (even if empty) for
+ * @supabase/supabase-js v2 and @supabase/ssr to resolve insert/update types
+ * correctly. Without it the client falls back to `never[]` for .insert().
  */
 
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
@@ -31,6 +35,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       income: {
         Row: {
@@ -57,6 +62,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       budget_nodes: {
         Row: {
@@ -95,6 +101,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       transactions: {
         Row: {
@@ -130,6 +137,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       community_posts: {
         Row: {
@@ -159,13 +167,14 @@ export interface Database {
           updated_at?: string
           deleted_at?: string | null
         }
+        Relationships: []
       }
       community_votes: {
         Row: {
           id: string
           post_id: string
           user_id: string
-          vote: number   // 1 | -1
+          vote: number
           created_at: string
         }
         Insert: {
@@ -182,6 +191,7 @@ export interface Database {
           vote?: number
           created_at?: string
         }
+        Relationships: []
       }
       community_comments: {
         Row: {
@@ -211,6 +221,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
     }
     Views: Record<string, never>

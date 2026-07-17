@@ -87,7 +87,7 @@ export function useTransactions(): UseTransactionsReturn {
     if (result.error) {
       setError(result.error)
     } else {
-      setAllTransactions(result.data)
+      setAllTransactions(result.data ?? [])
     }
 
     setIsLoading(false)
@@ -149,8 +149,10 @@ export function useTransactions(): UseTransactionsReturn {
     async (payload: TransactionInsert): Promise<string | null> => {
       const result = await createTransaction(payload)
       if (result.error) return result.error
+      if (!result.data) return 'Failed to create transaction.'
+      const created = result.data
       // Prepend so it appears at the top (sorted by date desc)
-      setAllTransactions((prev) => [result.data, ...prev])
+      setAllTransactions((prev) => [created, ...prev])
       return null
     },
     []
@@ -160,8 +162,10 @@ export function useTransactions(): UseTransactionsReturn {
     async (id: string, updates: TransactionUpdate): Promise<string | null> => {
       const result = await updateTransaction(id, updates)
       if (result.error) return result.error
+      if (!result.data) return 'Failed to update transaction.'
+      const updated = result.data
       setAllTransactions((prev) =>
-        prev.map((t) => (t.id === id ? result.data : t))
+        prev.map((t) => (t.id === id ? updated : t))
       )
       return null
     },

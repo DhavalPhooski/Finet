@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { getUserPosts, getAuthorStats } from '@/services/community/postService'
-import { createClient } from '@/lib/supabase/client'
+import {
+  getUserPosts,
+  getAuthorStats,
+  getPublicProfile,
+} from '@/services/community/postService'
 import { CommunityPost } from '@/components/community/CommunityPost'
 import { useCommunityFeed } from '@/hooks/useCommunityFeed'
 import { FullPageLoader } from '@/components/ui/LoadingSpinner'
@@ -25,7 +28,7 @@ export default function UserProfilePage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
 
-  // We need the feed hook only for vote/delete actions on listed posts
+  // Feed hook for vote/delete actions on listed posts
   const feed = useCommunityFeed()
 
   const [profile, setProfile] = useState<AuthorProfile | null>(null)
@@ -36,36 +39,32 @@ export default function UserProfilePage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!id) return
+    // useParams can theoretically return string | string[] depending on Next.js
+    // version — normalise to a plain string before making any service calls.
+    const authorId = Array.isArray(id) ? id[0] : id
+    if (!authorId) return
 
     async function load() {
       setIsLoading(true)
       setError(null)
 
-      const supabase = createClient()
+      const [profileResult, postsResult, statsResult] = await Promise.all([
+        getPublicProfile(authorId),
+        getUserPosts(authorId, user?.id ?? null),
+        getAuthorStats(authorId),
+      ])
 
-      // Fetch profile (only public fields)
-      const profileRes = await supabase
-        .from('profiles')
-        .select('id, full_name, created_at')
-        .eq('id', id)
-        .single()
-
-      if (profileRes.error || !profileRes.data) {
-        setError('User not found.')
+      if (profileResult.error || !profileResult.data) {
+        setError(profileResult.error ?? 'User not found.')
         setIsLoading(false)
         return
       }
-      setProfile(profileRes.data as AuthorProfile)
 
-      // Fetch posts + stats in parallel
-      const [postsResult, statsResult] = await Promise.all([
-        getUserPosts(id, user?.id ?? null),
-        getAuthorStats(id),
-      ])
+      setProfile(profileResult.data)
 
-      if (postsResult.error) setError(postsResult.error)
-      else {
+      if (postsResult.error || !postsResult.data) {
+        if (postsResult.error) setError(postsResult.error)
+      } else {
         setPosts(postsResult.data.posts)
         setHasMore(postsResult.data.hasMore)
       }

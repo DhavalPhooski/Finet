@@ -5,7 +5,7 @@ import { TransactionItem } from './TransactionItem'
 import { TransactionForm } from './TransactionForm'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
-import type { Transaction, BudgetNode } from '@/types'
+import type { Transaction, BudgetNode, TransactionInsert, TransactionUpdate } from '@/types'
 import type { UseTransactionsReturn, TransactionFilterState } from '@/hooks/useTransactions'
 
 interface TransactionListProps {
@@ -30,21 +30,39 @@ export function TransactionList({
   // ── Handlers ───────────────────────────────────────────────
 
   async function handleAdd(
-    payload: Parameters<UseTransactionsReturn['addTransaction']>[0]
+    payload: TransactionInsert | TransactionUpdate
   ): Promise<string | null> {
     setActionError(null)
-    const err = await tx.addTransaction(payload)
+    // In add-mode TransactionForm always includes user_id (via the userId prop)
+    // so the payload satisfies TransactionInsert. We pull out only the fields
+    // addTransaction needs rather than using an unsafe cast.
+    const insert: TransactionInsert = {
+      user_id: userId,
+      title: (payload.title ?? '') as string,
+      amount: (payload.amount ?? 0) as number,
+      date: (payload.date ?? '') as string,
+      budget_node_id: payload.budget_node_id ?? null,
+      note: payload.note ?? null,
+    }
+    const err = await tx.addTransaction(insert)
     if (err) { setActionError(err); return err }
     onHideAddForm?.()
     return null
   }
 
   async function handleEdit(
-    payload: Parameters<UseTransactionsReturn['editTransaction']>[1]
+    payload: TransactionInsert | TransactionUpdate
   ): Promise<string | null> {
     if (!editingTransaction) return null
     setActionError(null)
-    const err = await tx.editTransaction(editingTransaction.id, payload)
+    const update: TransactionUpdate = {
+      title: payload.title,
+      amount: payload.amount,
+      date: payload.date,
+      budget_node_id: payload.budget_node_id,
+      note: payload.note,
+    }
+    const err = await tx.editTransaction(editingTransaction.id, update)
     if (err) { setActionError(err); return err }
     setEditingTransaction(null)
     return null

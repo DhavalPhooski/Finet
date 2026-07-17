@@ -87,7 +87,7 @@ export function useCommunityFeed(): UseCommunityFeedReturn {
 
       if (result.error) {
         setError(result.error)
-      } else {
+      } else if (result.data) {
         setPosts(result.data.posts)
         setHasMore(result.data.hasMore)
         offsetRef.current = result.data.posts.length
@@ -134,8 +134,8 @@ export function useCommunityFeed(): UseCommunityFeedReturn {
 
     if (result.error) {
       setError(result.error)
-    } else {
-      setPosts((prev) => [...prev, ...result.data.posts])
+    } else if (result.data) {
+      setPosts((prev) => [...prev, ...result.data!.posts])
       setHasMore(result.data.hasMore)
       offsetRef.current += result.data.posts.length
     }
@@ -153,7 +153,9 @@ export function useCommunityFeed(): UseCommunityFeedReturn {
     async (payload: CommunityPostInsert): Promise<string | null> => {
       const result = await createPost(payload)
       if (result.error) return result.error
-      setPosts((prev) => [result.data, ...prev])
+      if (!result.data) return 'Failed to create post.'
+      const created = result.data
+      setPosts((prev) => [created, ...prev])
       return null
     },
     []

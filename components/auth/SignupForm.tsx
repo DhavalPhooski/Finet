@@ -60,7 +60,7 @@ export function SignupForm() {
 
     // If email confirmation is enabled in Supabase, show success message.
     // If not, the AuthContext will pick up the session and we redirect.
-    if (result.data.identities?.length === 0) {
+    if (!result.data || result.data.identities?.length === 0) {
       // Email already registered but unconfirmed
       setError('An account with this email already exists.')
       setIsSubmitting(false)

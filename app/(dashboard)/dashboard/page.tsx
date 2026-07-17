@@ -67,10 +67,18 @@ export default function DashboardPage() {
           budgetNodes={budget.nodes}
           userId={user.id}
           onSubmit={async (payload) => {
-            // TransactionForm passes TransactionInsert when no `transaction`
-            // prop is provided (add mode). The userId prop ensures user_id is
-            // set inside the form, so the cast to TransactionInsert is safe.
-            const err = await tx.addTransaction(payload as TransactionInsert)
+            // In add-mode TransactionForm always includes user_id (set via the
+            // userId prop), so we can safely construct the insert shape without
+            // an unsafe cast.
+            const insert: TransactionInsert = {
+              user_id: user.id,
+              title: (payload.title ?? '') as string,
+              amount: (payload.amount ?? 0) as number,
+              date: (payload.date ?? '') as string,
+              budget_node_id: payload.budget_node_id ?? null,
+              note: payload.note ?? null,
+            }
+            const err = await tx.addTransaction(insert)
             if (!err) setShowAddExpense(false)
             return err
           }}
