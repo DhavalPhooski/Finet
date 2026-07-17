@@ -51,6 +51,7 @@ const NAV_ITEMS = [
   { href: '/transactions', label: 'Expenses',     showBadge: false },
   { href: '/news',         label: 'News',         showBadge: false },
   { href: '/community',    label: 'Community',    showBadge: false },
+  { href: '/chat',         label: 'FinetAI',      showBadge: false },
   { href: '/experts',      label: 'Experts',      showBadge: false },
   { href: '/appointments', label: 'Appointments', showBadge: true  },
 ]
