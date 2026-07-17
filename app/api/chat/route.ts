@@ -100,9 +100,9 @@ Your role:
 
   const groqMessages = [
     { role: 'system', content: systemPrompt },
-    // Groq uses 'assistant' not 'model' for AI turns
+    // Messages are already in OpenAI/Groq format (user | assistant)
     ...messages.map((m) => ({
-      role: m.role === 'model' ? 'assistant' : m.role,
+      role: m.role,
       content: m.content,
     })),
   ]
