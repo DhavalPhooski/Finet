@@ -134,3 +134,73 @@ export interface CommunityFeedFilters {
   search: string         // '' = no search
   sort: 'newest'         // 'trending' is a future placeholder
 }
+
+// ════════════════════════════════════════════════════════════
+// EXPERT CONSULTATION
+// ════════════════════════════════════════════════════════════
+
+// ─── Enums (mirror DB enums) ──────────────────────────────────────────────────
+export type BookingStatus = 'confirmed' | 'completed' | 'cancelled'
+export type SessionType = 'chat' | 'video'
+export type SessionStatus = 'waiting' | 'active' | 'ended'
+
+// ─── Expert Profile ───────────────────────────────────────────────────────────
+export type ExpertProfile = Tables['expert_profiles']['Row']
+export type ExpertProfileInsert = Tables['expert_profiles']['Insert']
+export type ExpertProfileUpdate = Tables['expert_profiles']['Update']
+
+/**
+ * Expert profile enriched with computed review stats.
+ * avg_rating and review_count are derived at query time — never stored.
+ */
+export interface ExpertProfileWithStats extends ExpertProfile {
+  avg_rating: number | null   // null if no reviews yet
+  review_count: number
+}
+
+// ─── Expert Availability ──────────────────────────────────────────────────────
+export type ExpertAvailability = Tables['expert_availability']['Row']
+export type ExpertAvailabilityInsert = Tables['expert_availability']['Insert']
+export type ExpertAvailabilityUpdate = Tables['expert_availability']['Update']
+
+// ─── Appointment ──────────────────────────────────────────────────────────────
+export type Appointment = Tables['appointments']['Row']
+export type AppointmentInsert = Tables['appointments']['Insert']
+export type AppointmentUpdate = Tables['appointments']['Update']
+
+/**
+ * Appointment enriched with expert profile and session (if started).
+ * Used in the appointment dashboard and session views.
+ */
+export interface AppointmentWithDetails extends Appointment {
+  expert: Pick<ExpertProfile, 'id' | 'full_name' | 'avatar_url' | 'specializations' | 'fee_per_session' | 'currency'>
+  session: ConsultationSession | null
+  review: ConsultationReview | null
+}
+
+// ─── Consultation Session ──────────────────────────────────────────────────────
+export type ConsultationSession = Tables['consultation_sessions']['Row']
+export type ConsultationSessionInsert = Tables['consultation_sessions']['Insert']
+export type ConsultationSessionUpdate = Tables['consultation_sessions']['Update']
+
+// ─── Consultation Review ──────────────────────────────────────────────────────
+export type ConsultationReview = Tables['consultation_reviews']['Row']
+export type ConsultationReviewInsert = Tables['consultation_reviews']['Insert']
+export type ConsultationReviewUpdate = Tables['consultation_reviews']['Update']
+
+/**
+ * Review enriched with reviewer display name — shown on expert profiles.
+ */
+export interface ConsultationReviewWithReviewer extends ConsultationReview {
+  reviewer: Pick<Profile, 'id' | 'full_name'>
+}
+
+// ─── Expert listing filters ───────────────────────────────────────────────────
+export interface ExpertListingFilters {
+  specialization: string | null   // null = all specializations
+  search: string                  // '' = no search
+}
+
+// ─── Chat Message ─────────────────────────────────────────────────────────────
+export type ChatMessage = Tables['chat_messages']['Row']
+export type ChatMessageInsert = Tables['chat_messages']['Insert']
