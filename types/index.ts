@@ -204,3 +204,39 @@ export interface ExpertListingFilters {
 // ─── Chat Message ─────────────────────────────────────────────────────────────
 export type ChatMessage = Tables['chat_messages']['Row']
 export type ChatMessageInsert = Tables['chat_messages']['Insert']
+
+// ════════════════════════════════════════════════════════════
+// NEWS
+// ════════════════════════════════════════════════════════════
+
+/** A single article normalised from newsdata.io */
+export interface NewsArticle {
+  id: string
+  title: string
+  url: string
+  description: string | null
+  content: string | null
+  image: string | null
+  published_at: string | null
+  source: string | null
+  category: string[] | null
+  author: string | null
+}
+
+/** Filter state for the news feed */
+export interface NewsFeedFilters {
+  category: string    // '' = all
+  search: string      // '' = no search
+}
+
+/** Available categories supported by newsdata.io */
+export const NEWS_CATEGORIES = [
+  { value: '',              label: 'Top' },
+  { value: 'business',      label: 'Business' },
+  { value: 'technology',    label: 'Technology' },
+  { value: 'politics',      label: 'Politics' },
+  { value: 'sports',        label: 'Sports' },
+  { value: 'entertainment', label: 'Entertainment' },
+] as const
+
+export type NewsCategoryValue = typeof NEWS_CATEGORIES[number]['value']
